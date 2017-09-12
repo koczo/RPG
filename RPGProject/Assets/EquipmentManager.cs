@@ -21,17 +21,26 @@ public class EquipmentManager : MonoBehaviour {
 
     #endregion
 
+    public Equipment[] defaultEquipments;
     Equipment[] equipments;
+    SkinnedMeshRenderer[] meshRenderers;
     Inventory inventory;
+
+    public SkinnedMeshRenderer targetSkinnedMesh;
 
     public delegate void OnEquipmentChanged(Equipment newItem, Equipment oldItem);
     public OnEquipmentChanged onEquipmentChanged;
 
     private void Start()
     {
-        int currentNumberOfSlots = System.Enum.GetNames(typeof(EquipmentSlot)).Length;
-        equipments = new Equipment[currentNumberOfSlots];
         inventory = Inventory.instance;
+
+        int currentNumberOfSlots = System.Enum.GetNames(typeof(EquipmentSlot)).Length;
+
+        equipments = new Equipment[currentNumberOfSlots];
+        meshRenderers = new SkinnedMeshRenderer[currentNumberOfSlots];
+
+        EquipDefaultItems();
     }
 
     private void Update()
@@ -42,39 +51,53 @@ public class EquipmentManager : MonoBehaviour {
         }
     }
 
-    public void Equip(Equipment equipment)
+    public void Equip(Equipment newEquipment)
     {
-        int equipmentSlot = (int)equipment.equipmentSlot;
-        Equipment currentEqupment = equipments[equipmentSlot];
-
-        if (currentEqupment != null)
-        {
-            inventory.Add(currentEqupment);
-        }
+        int equipmentSlot = (int)newEquipment.equipmentSlot;
+        Equipment oldEquipment = Unequip(equipmentSlot);
 
         if (onEquipmentChanged != null)
         {
-            onEquipmentChanged.Invoke(equipment, currentEqupment);
+            onEquipmentChanged.Invoke(newEquipment, oldEquipment);
         }
 
-        equipments[equipmentSlot] = equipment;
+        SetEquipmentBlendShapes(newEquipment, 100);
+
+        equipments[equipmentSlot] = newEquipment;
+
+        SkinnedMeshRenderer newMesh = Instantiate<SkinnedMeshRenderer>(newEquipment.meshRendere);
+        newMesh.transform.parent = targetSkinnedMesh.transform;
+
+        newMesh.bones = targetSkinnedMesh.bones;
+        newMesh.rootBone = targetSkinnedMesh.rootBone;
+
+        meshRenderers[equipmentSlot] = newMesh;
     }
 
-    public void Unequip(int equipmentSlot)
+    public Equipment Unequip(int equipmentSlot)
     {
         Equipment currentEquipment = equipments[equipmentSlot];
 
         if (currentEquipment != null)
         {
+            if (meshRenderers[equipmentSlot] != null)
+            {
+                Destroy(meshRenderers[equipmentSlot].gameObject);
+            }
+
+            SetEquipmentBlendShapes(currentEquipment, 0);
+
             inventory.Add(currentEquipment);
+
+            if (onEquipmentChanged != null)
+            {
+                onEquipmentChanged.Invoke(null, currentEquipment);
+            }
+
+            equipments[equipmentSlot] = null;
         }
 
-        if (onEquipmentChanged != null)
-        {
-            onEquipmentChanged.Invoke(null, currentEquipment);
-        }
-
-        equipments[equipmentSlot] = null;
+        return currentEquipment;
     }
 
     public void UnequipAll()
@@ -82,6 +105,24 @@ public class EquipmentManager : MonoBehaviour {
         for (int i = 0; i < equipments.Length; i++)
         {
             Unequip(i);
+        }
+
+        EquipDefaultItems();
+    }
+
+    private void SetEquipmentBlendShapes(Equipment item, int weight)
+    {
+        foreach (EquipmentMeshRegion blendShape in item.coverdMeshRegions)
+        {
+            targetSkinnedMesh.SetBlendShapeWeight((int)blendShape, weight);
+        }
+    }
+
+    private void EquipDefaultItems()
+    {
+        foreach (Equipment item in defaultEquipments)
+        {
+            Equip(item);
         }
     }
 }
