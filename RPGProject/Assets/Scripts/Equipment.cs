@@ -4,6 +4,9 @@
 public class Equipment : Item
 {
     public EquipmentSlot equipmentSlot;
+    public EquipmentMeshRegion[] coverdMeshRegions;
+    public SkinnedMeshRenderer meshRendere;
+
     public int armorModifier;
     public int damageModifire;
 
@@ -27,4 +30,12 @@ public enum EquipmentSlot
     Weapon,
     Shield,
     Feet
+}
+
+// Corresponds to body blendshapes
+public enum EquipmentMeshRegion
+{
+    Legs,
+    Arms,
+    Torso
 }
